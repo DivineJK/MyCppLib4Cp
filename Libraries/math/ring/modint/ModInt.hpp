@@ -437,7 +437,7 @@ public:
 		*a = ret;
 	}
 	static void get_fact_table(int n, vector<ModInt>* fact,
-										 vector<ModInt>* invf) {
+							   vector<ModInt>* invf) {
 		assert(n >= 0);
 		ModInt t = 1;
 		if (fact) {
