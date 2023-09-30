@@ -1211,6 +1211,29 @@ public:
 		f.setDegree(n);
 		return f;
 	}
+	static FormalPowerSeries countSubsetSum(const vector<uint32_t>& s, uint32_t lim) {
+		int n = (int)s.size();
+		vector<uint32_t> cnts(1);
+		vector<modint_for_fps> invn;
+		modint_for_fps::get_inv_table(lim, &invn);
+		uint32_t mx = 0;
+		for (int i = 0; i < n; i++) {
+			if (mx < s[i]) {
+				cnts.resize(s[i] + 1);
+				mx = s[i];
+			}
+			cnts[s[i]]++;
+		}
+		FormalPowerSeries ret;
+		ret.setDegree(lim);
+		modint_for_fps c =  modint_for_fps::pow(2, cnts[0]);
+		for (int i = 1; i <= mx; i++) {
+			for (int j = 1; i * j <= lim; j++) {
+				ret[i * j] += ((j & 1) ? 1 : -1) * invn[j] * cnts[i];
+			}
+		}
+		return c * exp(ret);
+	}
 };
 
 class FormalPowerSeries_Sparse {
