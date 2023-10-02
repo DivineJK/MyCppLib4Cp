@@ -8,7 +8,7 @@
 #ifndef FormalPowerSeries_hpp
 #define FormalPowerSeries_hpp
 
-namespace formalpowerseries_internal {
+namespace fps_internal {
 constexpr int INTERNAL_MOD = 998244353; // 998244353 = 119 * 2 ^ 23 + 1
 constexpr int INTERNAL_BASE_SIZE = 23;
 static int internal_pri_root = 0;
@@ -354,10 +354,10 @@ public:
 	}
 };
 
-}	// namespace formalpowerseries_internal
+}	// namespace fps_internal
 
-static constexpr int MOD_FOR_FPS = formalpowerseries_internal::INTERNAL_MOD;
-using modint_for_fps = formalpowerseries_internal::internal_modint;
+static constexpr int MOD_FOR_FPS = fps_internal::INTERNAL_MOD;
+using modint_for_fps = fps_internal::internal_modint;
 
 class FormalPowerSeries {
 private:
@@ -729,6 +729,7 @@ public:
 	FormalPowerSeries operator/(const FormalPowerSeries& other) const {
 		FormalPowerSeries div;
 		getDivMod(*this, other, &div, nullptr);
+		div.state = state;
 		return div;
 	}
 	FormalPowerSeries operator/(int v) const {
@@ -749,6 +750,7 @@ public:
 	FormalPowerSeries operator%(const FormalPowerSeries& other) const {
 		FormalPowerSeries div, mod;
 		getDivMod(*this, other, &div, &mod);
+		mod.state = state;
 		return mod;
 	}
 	template <typename T>
@@ -898,7 +900,9 @@ public:
 			ret.poly = {};
 			return ret;
 		}
-		return invert_internal(*this);
+		FormalPowerSeries ret = invert_internal(*this);
+		ret.state = state;
+		return ret;
 	}
 	FormalPowerSeries getCropped(int m) const { return FormalPowerSeries(*this).crop(m); }
 	FormalPowerSeries getComposition(const FormalPowerSeries& fps) const {
@@ -1073,6 +1077,41 @@ public:
 		fpss2[1].setDegree(n - 1);
 		return fpss2[1];
 	}
+	static FormalPowerSeries getProduct(const vector<FormalPowerSeries>& polys) {
+		int n = (int)polys.size();
+		if (n == 0) {
+			return 1;
+		}
+		if (n == 1) {
+			return polys[0];
+		}
+		vector<FormalPowerSeries> temp(n);
+		priority_queue<pair<int, int>> pq;
+		int pos = 0;
+		for (int i = 0; i < n; i++) { pq.push(make_pair(-polys[i].getDegree(), i)); }
+		while (pq.size() > 1) {
+			pair<int, int> r1 = pq.top();
+			pq.pop();
+			pair<int, int> r2 = pq.top();
+			pq.pop();
+			int idx1 = r1.second, idx2 = r2.second;
+			int idx;
+			if (idx1 < n && idx2 < n) {
+				idx = pos;
+				pos++;
+			} else if (idx1 >= n) {
+				idx = idx1 - n;
+			} else {
+				idx = idx2 - n;
+			}
+			const FormalPowerSeries* f1 = (idx1 < n) ? &polys[idx1] : &temp[idx1 - n];
+			const FormalPowerSeries* f2 = (idx2 < n) ? &polys[idx2] : &temp[idx2 - n];
+			temp[idx] = (*f1) * (*f2);
+			pq.push(make_pair(r1.first + r2.first, idx + n));
+		}
+		pair<int, int> r = pq.top();
+		return temp[r.second - n];
+	}
 	static FormalPowerSeries getShiftedMonomialDiv(const FormalPowerSeries& f,
 												   int m, const modint_for_fps& a) {
 		if (m <= 0) { return f / (-a); }
@@ -1234,10 +1273,6 @@ public:
 		}
 		return c * exp(ret);
 	}
-};
-
-class FormalPowerSeries_Sparse {
-	
 };
 
 #endif /* FormalPowerSeries_hpp */

@@ -8,7 +8,7 @@
 #ifndef ArgumentSorting_hpp
 #define ArgumentSorting_hpp
 
-namespace argumentsorting_internal {
+namespace argsort_internal {
 template <typename T>
 class Point {
 private:
