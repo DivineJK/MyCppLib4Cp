@@ -10,143 +10,28 @@
 
 namespace fpss_internal {
 constexpr int INTERNAL_MOD = 998244353; // 998244353 = 119 * 2 ^ 23 + 1
-constexpr int INTERNAL_BASE_SIZE = 23;
-static int internal_pri_root = 0;
-static int internal_inv_root = 0;
-static bool is_calc_bases = false;
-static int internal_pri_bases[INTERNAL_BASE_SIZE + 1];
-static int internal_inv_bases[INTERNAL_BASE_SIZE + 1];
-static int internal_cml_bases[INTERNAL_BASE_SIZE + 1];
 class internal_modint {
 	using modint = internal_modint;
 private:
 	uint32_t x = 0;
 private:
-	static void initialize() {
-		if (!is_calc_bases) {
-			make_base();
-			is_calc_bases = true;
-		}
-	}
-	static constexpr bool is_primitive(int i) {
-		int v = i;
-		for (int i = 0; i < INTERNAL_BASE_SIZE; i++) {
-			if (v == 1) { return false; }
-			v = (int64_t)v * v % INTERNAL_MOD;
-		}
-		return v == 1;
-	}
-	static constexpr int modinv(uint32_t n) {
-		uint32_t p = n, t = 1;
-		while (p > 1) {
-			t = (uint64_t)t * (INTERNAL_MOD - (INTERNAL_MOD / p)) % INTERNAL_MOD;
-			p = INTERNAL_MOD % p;
-		}
-		return t;
-	}
-	static void make_base() {
-		for (int i = 1; i < INTERNAL_MOD; i++) {
-			if (is_primitive(i)) {
-				internal_pri_root = i;
-				internal_inv_root = modinv(i);
-				break;
-			}
-		}
-		internal_pri_bases[INTERNAL_BASE_SIZE] = internal_pri_root;
-		internal_inv_bases[INTERNAL_BASE_SIZE] = internal_inv_root;
-		for (int i = INTERNAL_BASE_SIZE; i > 0; i--) {
-			int pv = internal_pri_bases[i];
-			int iv = internal_inv_bases[i];
-			internal_pri_bases[i - 1] = (int64_t)pv * pv % INTERNAL_MOD;
-			internal_inv_bases[i - 1] = (int64_t)iv * iv % INTERNAL_MOD;
-		}
-		int ie = 1;
-		for (int i = 0; i < INTERNAL_BASE_SIZE - 1; i++) {
-			internal_cml_bases[i] = (int64_t)ie * internal_pri_bases[i + 2] % INTERNAL_MOD;
-			ie = (int64_t)ie * internal_inv_bases[i + 2] % INTERNAL_MOD;
-		}
-	}
-	static void ntt(vector<modint>* arr) {
-		size_t n = arr->size();
-		if (n <= 1) { return; }
-		assert(!(n & (n - 1)));
-		int m = 0;
-		while ((1 << m) < n) { m++; }
-		int p = 1, t = 1 << (m - 1);
-		for (int i = 0; i < m; i++) {
-			modint g = 1;
-			for (int j = 0; j < p; j++) {
-				modint u, v;
-				int offset = j << (m - i);
-				for (int k = 0; k < t; k++) {
-					u = (*arr)[k + offset];
-					v = (*arr)[k + offset + t] * g;
-					(*arr)[k + offset] = u + v;
-					(*arr)[k + offset + t] = u - v;
-				}
-				int w = (j + 1) ^ (j & (j + 1)), z = -1;
-				while (w) {
-					z++;
-					w >>= 1;
-				}
-				g *= internal_cml_bases[z];
-			}
-			p <<= 1;
-			t >>= 1;
-		}
-	}
-	static void intt(vector<modint>* arr) {
-		size_t n = arr->size();
-		if (n <= 1) { return; }
-		modint invn = inv((int)n);
-		assert(!(n & (n - 1)));
-		int m = 0;
-		while ((1 << m) < n) { m++; }
-		for (int i = 0; i < m; i++) {
-			modint g = 1, s = internal_inv_bases[i + 1];
-			int offset = 1 << i;
-			for (int k = 0; k < offset; k++) {
-				for (int j = k; j < n; j += (1 << (i + 1))) {
-					modint x = (*arr)[j], y = (*arr)[j + offset] * g;
-					(*arr)[j] = x + y;
-					(*arr)[j + offset] = x - y;
-				}
-				g *= s;
-			}
-		}
-		for (int i = 0; i < n; i++) {
-			(*arr)[i] *= invn;
-		}
-	}
 public:
-	internal_modint() : x(0) { initialize(); }
-	internal_modint(bool b) {
-		x = (b) ? 1 : 0;
-		initialize();
-	}
+	internal_modint() : x(0) {}
+	internal_modint(bool b) { x = (b) ? 1 : 0; }
 	internal_modint(int a) {
 		int v = a % INTERNAL_MOD;
 		x = (v < 0) ? INTERNAL_MOD + v : v;
-		initialize();
 	}
 	internal_modint(int64_t a) {
 		int v = a % INTERNAL_MOD;
 		x = (v < 0) ? INTERNAL_MOD + v : v;
-		initialize();
 	}
-	internal_modint(uint32_t a) {
-		x = a % INTERNAL_MOD;
-		initialize();
-	}
-	internal_modint(uint64_t a) {
-		x = a % INTERNAL_MOD;
-		initialize();
-	}
+	internal_modint(uint32_t a) { x = a % INTERNAL_MOD; }
+	internal_modint(uint64_t a) { x = a % INTERNAL_MOD; }
 	internal_modint(const modint& mint) { operator=(mint); }
 	uint32_t val() const { return x; }
 	modint& operator=(const modint& mint) {
 		x = mint.x;
-		initialize();
 		return *this;
 	}
 	explicit operator bool() const { return x != 0; }
@@ -275,55 +160,6 @@ public:
 			r *= b;
 		}
 		return (r.x > INTERNAL_MOD - r.x) ? INTERNAL_MOD - r.x : r.x;
-	}
-	static void convolve_one(vector<modint>* a, const vector<modint>& b) {
-		if (a->size() == 0 || b.size() == 0) {
-			*a = {};
-			return;
-		}
-		size_t n = a->size(), m = b.size(), bas = 1;
-		while (bas < n + m) { bas <<= 1; }
-		a->resize(bas);
-		vector<modint> v(bas);
-		for (size_t i = 0; i < m; i++) { v[i] = b[i]; }
-		ntt(a);
-		ntt(&v);
-		for (size_t i = 0; i < bas; i++) { (*a)[i] *= v[i]; }
-		intt(a);
-	}
-	static void convolve(vector<modint>* a, const vector<modint>& b) {
-		if (a->size() == 0 || b.size() == 0) {
-			*a = {};
-			return;
-		}
-		int n = (int)a->size(), m = (int)b.size();
-		int bas = 1, c = 0;
-		while (bas < n + m) {
-			bas <<= 1;
-			c++;
-		}
-		int bs = 21;
-		if (bas <= (1 << bs)) {
-			convolve_one(a, b);
-			return;
-		}
-		int lim = 1 << 18;
-		int s = (n + lim - 1) / lim, t = (m + lim - 1) / lim;
-		a->resize(s * lim);
-		vector<modint> y(t * lim);
-		for (int i = 0; i < m; i++) { y[i] = b[i]; }
-		vector<modint> ret((s + t) * lim);
-		for (int i = 0; i < s; i++) {
-			vector<modint> u(lim);
-			for (int j = 0; j < lim; j++) { u[j] = (*a)[lim * i + j]; }
-			for (int j = 0; j < t; j++) {
-				vector<modint> res(lim);
-				for (int k = 0; k < lim; k++) { res[k] = y[lim * j + k]; }
-				convolve_one(&u, res);
-				for (int k = 0; k < u.size(); k++) { ret[(i + j) * lim + k] += u[k]; }
-			}
-		}
-		*a = ret;
 	}
 	static void get_fact_table(int n, vector<modint>* fact,
 							   vector<modint>* invf) {
