@@ -10,9 +10,41 @@
 
 namespace fps_internal {
 constexpr int INTERNAL_MOD = 998244353; // 998244353 = 119 * 2 ^ 23 + 1
-constexpr int INTERNAL_BASE_SIZE = 23;
-static int internal_pri_root = 0;
-static int internal_inv_root = 0;
+constexpr int get_base_size(int m) {
+	int v = m - 1;
+	int r = 0;
+	while (!(v & 1)) {
+		r++;
+		v >>= 1;
+	}
+	return r;
+}
+static constexpr int modinv(uint32_t n) {
+	uint32_t p = n, t = 1;
+	while (p > 1) {
+		t = (uint64_t)t * (INTERNAL_MOD - (INTERNAL_MOD / p)) % INTERNAL_MOD;
+		p = INTERNAL_MOD % p;
+	}
+	return t;
+}
+constexpr int INTERNAL_BASE_SIZE = get_base_size(INTERNAL_MOD);
+static_assert(INTERNAL_BASE_SIZE >= 15, "INTERNAL_MOD is not suitable for NTT");
+static constexpr bool is_primitive(int i) {
+	int v = i;
+	for (int i = 0; i < INTERNAL_BASE_SIZE; i++) {
+		if (v == 1) { return false; }
+		v = (int64_t)v * v % INTERNAL_MOD;
+	}
+	return v == 1;
+}
+static constexpr int get_primitive_base() {
+	for (int i = 1; i < INTERNAL_MOD; i++) {
+		if (is_primitive(i)) { return i; }
+	}
+	return 0;
+}
+constexpr int INTERNAL_PRI_ROOT = get_primitive_base();
+constexpr int INTERNAL_INV_ROOT = modinv(INTERNAL_PRI_ROOT);
 static bool is_calc_bases = false;
 static int internal_pri_bases[INTERNAL_BASE_SIZE + 1];
 static int internal_inv_bases[INTERNAL_BASE_SIZE + 1];
@@ -28,32 +60,9 @@ private:
 			is_calc_bases = true;
 		}
 	}
-	static constexpr bool is_primitive(int i) {
-		int v = i;
-		for (int i = 0; i < INTERNAL_BASE_SIZE; i++) {
-			if (v == 1) { return false; }
-			v = (int64_t)v * v % INTERNAL_MOD;
-		}
-		return v == 1;
-	}
-	static constexpr int modinv(uint32_t n) {
-		uint32_t p = n, t = 1;
-		while (p > 1) {
-			t = (uint64_t)t * (INTERNAL_MOD - (INTERNAL_MOD / p)) % INTERNAL_MOD;
-			p = INTERNAL_MOD % p;
-		}
-		return t;
-	}
 	static void make_base() {
-		for (int i = 1; i < INTERNAL_MOD; i++) {
-			if (is_primitive(i)) {
-				internal_pri_root = i;
-				internal_inv_root = modinv(i);
-				break;
-			}
-		}
-		internal_pri_bases[INTERNAL_BASE_SIZE] = internal_pri_root;
-		internal_inv_bases[INTERNAL_BASE_SIZE] = internal_inv_root;
+		internal_pri_bases[INTERNAL_BASE_SIZE] = INTERNAL_PRI_ROOT;
+		internal_inv_bases[INTERNAL_BASE_SIZE] = INTERNAL_INV_ROOT;
 		for (int i = INTERNAL_BASE_SIZE; i > 0; i--) {
 			int pv = internal_pri_bases[i];
 			int iv = internal_inv_bases[i];
