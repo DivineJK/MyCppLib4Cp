@@ -12,8 +12,4 @@ class FormalPowerSeries_ArbitraryPrime {
 	
 };
 
-class FormalPowerSeries_ArbitraryPrime_Sparse {
-	
-};
-
 #endif /* FormalPowerSeries_ArbitraryPrime_hpp */

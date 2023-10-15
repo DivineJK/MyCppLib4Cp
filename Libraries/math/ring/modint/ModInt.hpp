@@ -210,6 +210,20 @@ public:
 		}
 		return ModInt(t);
 	}
+	ModInt extended_inv() const {
+		if (x == 0) { return 0; }
+		int a = 1, b = 0, c = 0, d = 1, k = x, l = mod();
+		while (l > 0) {
+			uint32_t t1 = a, t2 = b, t3 = k;
+			a = c;
+			b = d;
+			c = t1 - c * (k / l);
+			d = t2 - d * (k / l);
+			k = l;
+			l = t3 % l;
+		}
+		return a;
+	}
 	static ModInt inv(const ModInt& v) {
 		if (v.x == 0) { return v; }
 		uint32_t a = v.x, t = 1;
@@ -218,6 +232,9 @@ public:
 			a = umod() % a;
 		}
 		return ModInt(t);
+	}
+	static ModInt extended_inv(const ModInt& v) {
+		return v.extended_inv();
 	}
 	ModInt& operator=(const ModInt& other) {
 		x = other.x;

@@ -551,6 +551,10 @@ public:
 			os << -1;
 			return os;
 		}
+		if (rhs.poly.size() == 0) {
+			os << 0;
+			return os;
+		}
 		for (int i = 0; i < rhs.poly.size(); i++) {
 			if (i > 0) { os << " "; }
 			os << rhs.poly[i];
@@ -696,7 +700,7 @@ public:
 	}
 	FormalPowerSeries& operator<<=(int n) {
 		int m = getDegree();
-		expand(n);
+		extend(n);
 		for (int i = m; i >= 0; i--) { (*this)[i + n] = (*this)[i]; }
 		for (int i = 0; i < n; i++) { (*this)[i] = 0; }
 		return *this;
@@ -788,8 +792,10 @@ public:
 	void setCoeff(size_t i, const modint_for_fps& val) { (*this)[i] = val; }
 	int getDegree() const { return (int)poly.size() - 1; }
 	void setDegree(int aDeg) { poly.resize(aDeg + 1); }
-	void expand(int aDeg) { setDegree(getDegree() + aDeg); }
-	void expandTo(int aDeg) {
+	void extend(int aDeg) {
+		if (aDeg > 0) { setDegree(getDegree() + aDeg); }
+	}
+	void extendTo(int aDeg) {
 		if (aDeg > getDegree()) { setDegree(aDeg); }
 	}
 	int getState() const { return state; }
@@ -895,7 +901,7 @@ public:
 			cv *= v;
 		}
 		modint_for_fps::convolve(&a, c);
-		expandTo(n);
+		extendTo(n);
 		for (int i = 0; i <= n; i++) { (*this)[i] = a[n - i] * invn[i]; }
 		return *this;
 	}
@@ -975,8 +981,8 @@ public:
 			s.crop(m);
 			s <<= m - 1;
 			s.integrate();
-			h.expandTo(2 * m - 1);
-			dh.expandTo(2 * m - 2);
+			h.extendTo(2 * m - 1);
+			dh.extendTo(2 * m - 2);
 			for (int i = m; i < (m << 1); i++) {
 				h[i] = f.getCoeff(i);
 				dh[i - 1] = h[i] * i;
@@ -985,7 +991,7 @@ public:
 			u *= ret;
 			u.crop(m);
 			ret += u << m;
-			dr.expandTo(2 * m - 2);
+			dr.extendTo(2 * m - 2);
 			for (int i = m; i < (m << 1); i++) { dr[i - 1] = ret.getCoeff(i) * i; }
 			g *= 2 - ret * g;
 			m <<= 1;

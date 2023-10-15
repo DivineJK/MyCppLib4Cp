@@ -338,6 +338,10 @@ public:
 			return os;
 		}
 		int n = fps.getDegree();
+		if (n < 0) {
+			os << 0;
+			return os;
+		}
 		for (int i = 0; i <= n; i++) {
 			if (i > 0) { os << " "; }
 			os << fps.getCoeff(i);
