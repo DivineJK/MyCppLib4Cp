@@ -8,192 +8,6 @@
 #ifndef Matrix_hpp
 #define Matrix_hpp
 
-namespace matrix_internal {
-template <int MOD>
-class internal_modint {
-	using modint = internal_modint;
-private:
-	uint32_t x = 0;
-private:
-	static constexpr int mod() { return MOD; }
-	static constexpr uint32_t umod() { return (uint32_t)MOD; }
-public:
-	internal_modint() : x(0) {}
-	internal_modint(bool b) { x = (b) ? 1 : 0; }
-	internal_modint(int a) {
-		int v = a % mod();
-		x = (v < 0) ? mod() + v : v;
-	}
-	internal_modint(int64_t a) {
-		int v = a % mod();
-		x = (v < 0) ? mod() + v : v;
-	}
-	internal_modint(uint32_t a) { x = a % umod(); }
-	internal_modint(uint64_t a) { x = a % umod(); }
-	internal_modint(const modint& mint) { operator=(mint); }
-	uint32_t val() const { return x; }
-	modint& operator=(const modint& mint) {
-		x = mint.x;
-		return *this;
-	}
-	explicit operator bool() const { return x != 0; }
-	bool operator!() const { return x == 0; }
-	friend ostream& operator<<(ostream& os, const modint& mint) {
-		os << mint.x;
-		return os;
-	}
-	friend istream& operator>>(istream& ist, modint& mint) {
-		int a;
-		ist >> a;
-		mint = a;
-		return ist;
-	}
-	bool operator==(const modint& mint) const { return x == mint.x; }
-	bool operator!=(const modint& mint) const { return x != mint.x; }
-	modint inv() const {
-		if (x == 0) { return modint(); }
-		uint32_t a = x, t = 1;
-		while (a > 1) {
-			t = (uint64_t)t * (umod() - umod() / a) % umod();
-			a = umod() % a;
-		}
-		return modint(t);
-	}
-	modint extended_inv() const {
-		if (x == 0) { return 0; }
-		int a = 1, b = 0, c = 0, d = 1, k = x, l = mod();
-		while (l > 0) {
-			uint32_t t1 = a, t2 = b, t3 = k;
-			a = c;
-			b = d;
-			c = t1 - c * (k / l);
-			d = t2 - d * (k / l);
-			k = l;
-			l = t3 % l;
-		}
-		return a;
-	}
-	static modint inv(const modint& mint) {
-		if (mint.x == 0) { return mint; }
-		uint32_t a = mint.x, t = 1;
-		while (a > 1) {
-			t = (uint64_t)t * (umod() - umod() / a) % umod();
-			a = umod() % a;
-		}
-		return modint(t);
-	}
-	static modint extended_inv(const modint& v) {
-		return v.extended_inv();
-	}
-	modint operator+() const { return modint(*this); }
-	modint operator-() const {
-		modint ret = modint(*this);
-		ret.x = (ret.x == 0) ? ret.x : umod() - ret.x;
-		return ret;
-	}
-	modint& operator++() {
-		x++;
-		if (x == umod()) { x = 0; }
-		return *this;
-	}
-	modint operator++(int) {
-		modint ret = modint(*this);
-		++*this;
-		return ret;
-	}
-	modint& operator--() {
-		x = (x == 0) ? umod() - 1 : x - 1;
-		return *this;
-	}
-	modint operator--(int) {
-		modint ret = modint(*this);
-		--*this;
-		return ret;
-	}
-	modint& operator+=(const modint& mint) {
-		x = (x + mint.x >= umod()) ? x + mint.x - umod() : x + mint.x;
-		return *this;
-	}
-	modint& operator-=(const modint& mint) {
-		x = (x < mint.x) ? umod() + x - mint.x : x - mint.x;
-		return *this;
-	}
-	modint& operator*=(const modint& mint) {
-		x = (uint64_t)x * mint.x % umod();
-		return *this;
-	}
-	modint& operator/=(const modint& mint) {
-		*this *= inv(mint);
-		return *this;
-	}
-	modint operator+(const modint& mint) const { return modint(*this) += mint; }
-	modint operator-(const modint& mint) const { return modint(*this) -= mint; }
-	modint operator*(const modint& mint) const { return modint(*this) *= mint; }
-	modint operator/(const modint& mint) const { return modint(*this) /= mint; }
-	template <typename T>
-	friend modint operator+(const T& lhs, const modint& mint) { return modint(lhs) += mint; }
-	template <typename T>
-	friend modint operator-(const T& lhs, const modint& mint) { return modint(lhs) -= mint; }
-	template <typename T>
-	friend modint operator*(const T& lhs, const modint& mint) { return modint(lhs) *= mint; }
-	template <typename T>
-	friend modint operator/(const T& lhs, const modint& mint) { return modint(lhs) /= mint; }
-	template <typename T>
-	static modint pow(const modint& a, T m) {
-		modint ret = 1, v;
-		if (m < 0) {
-			m = -m;
-			v = inv(a);
-		} else { v = a; }
-		while (m) {
-			if (m & 1) { ret *= v; }
-			v *= v;
-			m >>= 1;
-		}
-		return ret;
-	}
-	template <typename T>
-	modint operator^(T m) const { return pow(*this, m); }
-	static int sqrt(const modint& n) {
-		if (n.val() == 0 || n.val() == 1) { return n.val(); }
-		if (pow(n, umod() >> 1) + 1 == 0) { return -1; }
-		int m = umod() - 1, q = 0;
-		while (!(m & 1)) {
-			q++;
-			m >>= 1;
-		}
-		modint z = 1, r = pow(n, (m + 1) >> 1), t = pow(n, m);
-		while (pow(z, umod() >> 1) == 1) { z++; }
-		z = pow(z, m);
-		while (t != 1) {
-			modint c = t;
-			int i = 0;
-			while (c != 1) {
-				i++;
-				c *= c;
-			}
-			modint b = pow(z, 1 << (q - i - 1));
-			q = i;
-			z = b * b;
-			t *= z;
-			r *= b;
-		}
-		return (r.x > umod() - r.x) ? umod() - r.x : r.x;
-	}
-};
-} // namespace matrix_internal
-
-template <int MOD>
-using modint_for_matrix = matrix_internal::internal_modint<MOD>;
-
-template <typename T>
-class LinearEquationSolution {
-public:
-	bool is_valid = true;
-	vector<T> primalSolution;
-	vector<vector<T>> kernelBases;
-};
-
 template <typename T>
 class Matrix {
 private:
@@ -459,11 +273,51 @@ public:
 		}
 		return ret;
 	}
-	Matrix& invert();
-	Matrix getInverted() const;
-	virtual LinearEquationSolution<T> solveLinearEquationsSystem(const vector<T>& b) const {
-		LinearEquationSolution<T> ret;
-		return ret;
+	Matrix& invert() {
+		if (state < 0) { return *this; }
+		assert(getRow() == getColumn());
+		uint32_t n = getRow();
+		setColumn(n << 1);
+		uint32_t en = n << 1;
+		for (uint32_t i = 0; i < n; i++) { setElement(i, i + n, 1); }
+		for (uint32_t i = 0; i < n; i++) {
+			if ((*this)[i][i] == 0) {
+				uint32_t j = i;
+				while (j < n && (*this)[j][i] == 0) { j++; }
+				if (j == n) {
+					state = -1;
+					setColumn(n);
+					return *this;
+				}
+				swapRow(i, j);
+			}
+			T v = (*this)[i][i];
+			(*this)[i][i] = 1;
+			for (uint32_t j = i + 1; j < en; j++) { (*this)[i][j] /= v; }
+			for (uint32_t j = i + 1; j < n; j++) {
+				T pv = (*this)[j][i];
+				if (pv == 0) { continue; }
+				for (uint32_t k = i + 1; k < en; k++) {
+					(*this)[j][k] -= (*this)[i][k] * pv;
+				}
+			}
+		}
+		for (uint32_t i = n; i > 0; i--) {
+			for (uint32_t k = i - 1; k > 0; k--) {
+				T pv = (*this)[k - 1][i - 1];
+				if (pv == 0) { continue; }
+				for (uint32_t j = n; j < en; j++) {
+					(*this)[k - 1][j] -= (*this)[i - 1][j] * pv;
+				}
+			}
+			for (uint32_t j = 0; j < n; j++) { (*this)[i - 1][j] = (*this)[i - 1][j + n]; }
+		}
+		setColumn(n);
+		return *this;
+	}
+	Matrix getInverted() const { return Matrix(*this).invert(); }
+	void solveLinearEquationsSystem(const vector<T>& b, vector<T>* sol,
+									vector<vector<T>>* kernel) const {
 	}
 	static Matrix getIdentity(uint32_t s) {
 		Matrix ret(s, s);
@@ -489,6 +343,7 @@ public:
 			ret *= v;
 			for (uint32_t j = i + 1; j < n; j++) {
 				T pv = m[j][i];
+				if (pv == 0) { continue; }
 				for (uint32_t k = i + 1; k < n; k++) {
 					m[j][k] -= m[i][k] * pv / v;
 				}
@@ -523,51 +378,6 @@ public:
 				}
 			}
 		}
-		return ret;
-	}
-};
-
-template <int MOD>
-class ModintMatrix : public Matrix<modint_for_matrix<MOD>> {
-	using mint = modint_for_matrix<MOD>;
-public:
-	ModintMatrix() : Matrix<mint>() {}
-	ModintMatrix(uint32_t aRow, uint32_t aColumn)
-	: Matrix<mint>(aRow, aColumn) {}
-	ModintMatrix(uint32_t aRow, uint32_t aColumn, const vector<mint>& aElms)
-	: Matrix<mint>(aRow, aColumn, aElms) {}
-	ModintMatrix(const vector<vector<mint>>& aMat) : Matrix<mint>(aMat) {}
-	ModintMatrix(const ModintMatrix& other) : Matrix<mint>(other) {}
-	static mint det(const ModintMatrix& mat) {
-		assert(mat.getRow() == mat.getColumn());
-		uint32_t n = (uint32_t)mat.getRow();
-		Matrix m = mat;
-		mint ret = 1;
-		vector<int> rows(mat.getRow());
-		for (uint32_t i = 0; i < n; i++) {
-			if (m[i][i] == 0) {
-				ret = -ret;
-				uint32_t j = i;
-				while (j < n && m[j][i] == 0) { j++; }
-				if (j == n) { return 0; }
-				m.swapRow(i, j);
-				
-			}
-			mint v = m[i][i];
-			mint iv = v.inv();
-			for (uint32_t j = i; j < n; j++) { m[i][j] *= iv; }
-			ret *= v;
-			for (uint32_t j = i + 1; j < n; j++) {
-				mint pv = m[j][i];
-				for (uint32_t k = i + 1; k < n; k++) {
-					m[j][k] -= m[i][k] * pv;
-				}
-			}
-		}
-		return ret;
-	}
-	virtual LinearEquationSolution<mint> solveLinearEquationsSystem(const vector<mint>& b) const override {
-		LinearEquationSolution<mint> ret;
 		return ret;
 	}
 };
