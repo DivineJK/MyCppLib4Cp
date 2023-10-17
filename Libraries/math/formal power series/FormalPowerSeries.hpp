@@ -376,14 +376,6 @@ private:
 	int state = 0;
 	vector<modint_for_fps> poly;
 private:
-	void regularize() {
-		int s = (int)poly.size();
-		for (int i = (int)poly.size(); i > 0; i--) {
-			if (poly[i - 1]) { break; }
-			s--;
-		}
-		poly.resize(s);
-	}
 	static constexpr uint32_t getMinBinary(uint32_t v) {
 		uint32_t ret = 1;
 		while (ret < v) { ret <<= 1; }
@@ -517,6 +509,50 @@ private:
 		modint_for_fps::get_inv_table(lim, &invn);
 		for (int i = 1; i < lim; i++) { ret[i] = -ret[i - 1] * (i + n - 1) * invn[i]; }
 		return ret;
+	}
+	static void hgcd(const FormalPowerSeries& a, const FormalPowerSeries& b,
+					 FormalPowerSeries* p, FormalPowerSeries* q,
+					 FormalPowerSeries* r, FormalPowerSeries* s) {
+		int n = a.getDegree();
+		int m = (n + 1) / 2;
+		if (b.getDegree() < m) {
+			*p = 1;
+			*q = 0;
+			*r = 0;
+			*s = 1;
+			return;
+		}
+		FormalPowerSeries a0 = a >> m, b0 = b >> m;
+		FormalPowerSeries r0, r1, r2, r3;
+		hgcd(a0, b0, &r0, &r1, &r2, &r3);
+		a0 = r3 * a - r1 * b;
+		b0 = r0 * b - r2 * a;
+		a0.regularize();
+		b0.regularize();
+		if (b0.getDegree() < m) {
+			*p = r0;
+			*q = r1;
+			*r = r2;
+			*s = r3;
+			return;
+		}
+		int l = b0.getDegree();
+		FormalPowerSeries ad, d;
+		getDivMod(a0, b0, &ad, &d);
+		int k = 2 * m - l;
+		FormalPowerSeries c0 = b0 >> k, d0 = d >> k;
+		FormalPowerSeries s0, s1, s2, s3;
+		hgcd(c0, d0, &s0, &s1, &s2, &s3);
+		r1 += r0 * ad;
+		r3 += r2 * ad;
+		*p = r1 * s0 + r0 * s2;
+		*q = r1 * s1 + r0 * s3;
+		*r = r3 * s0 + r2 * s2;
+		*s = r3 * s1 + r2 * s3;
+		p->regularize();
+		q->regularize();
+		r->regularize();
+		s->regularize();
 	}
 public:
 	FormalPowerSeries() {}
@@ -798,6 +834,14 @@ public:
 	void extendTo(int aDeg) {
 		if (aDeg > getDegree()) { setDegree(aDeg); }
 	}
+	void regularize() {
+		int s = (int)poly.size();
+		for (int i = (int)poly.size(); i > 0; i--) {
+			if (poly[i - 1]) { break; }
+			s--;
+		}
+		poly.resize(s);
+	}
 	int getState() const { return state; }
 	modint_for_fps evaluate(const modint_for_fps& v) const {
 		modint_for_fps ret = 0;
@@ -918,6 +962,9 @@ public:
 		FormalPowerSeries ret = invert_internal(*this);
 		ret.state = state;
 		return ret;
+	}
+	FormalPowerSeries getPolynomialInverse(const FormalPowerSeries& g) const {
+		return getPolynomialInverse(*this, g);
 	}
 	FormalPowerSeries getCropped(int m) const { return FormalPowerSeries(*this).crop(m); }
 	FormalPowerSeries getComposition(const FormalPowerSeries& fps) const {
@@ -1287,6 +1334,77 @@ public:
 			}
 		}
 		return c * exp(ret);
+	}
+	static FormalPowerSeries gcd(const FormalPowerSeries& a, const FormalPowerSeries& b) {
+		FormalPowerSeries x = a, y = b;
+		if (x.getDegree() <= y.getDegree()) {
+			FormalPowerSeries tmp = x;
+			x = y;
+			y = tmp % y;
+		}
+		while (y) {
+			FormalPowerSeries p, q, r, s;
+			hgcd(x, y, &p, &q, &r, &s);
+			FormalPowerSeries tmp = x;
+			x = s * x - q * y;
+			y = p * y - r * tmp;
+			x.regularize();
+			y.regularize();
+			if (y == 0) { break; }
+			tmp = x;
+			x = y;
+			y = tmp % y;
+		}
+		return x;
+	}
+	static FormalPowerSeries getPolynomialInverse(const FormalPowerSeries& a,
+												  const FormalPowerSeries& b) {
+		FormalPowerSeries x = 1, y = 0, u = 0, v = 1, k = a, l = b;
+		if (k.getDegree() <= l.getDegree()) {
+			FormalPowerSeries xTmp = x, yTmp = y;
+			FormalPowerSeries q, m;
+			getDivMod(k, l, &q, &m);
+			x = u;
+			y = v;
+			u = xTmp - u * q;
+			v = yTmp - v * q;
+			k = l;
+			l = m;
+		}
+		while (l) {
+			FormalPowerSeries p, q, r, s;
+			hgcd(k, l, &p, &q, &r, &s);
+			modint_for_fps det = (p * s - q * r).getCoeff(0);
+			assert(det - 1 == 0 || det + 1 == 0);
+			FormalPowerSeries xTmp = x, yTmp = y;
+			x = s * x - q * u;
+			y = s * y - q * v;
+			u = p * u - r * xTmp;
+			v = p * yTmp - r * v;
+			FormalPowerSeries kTmp = k;
+			k = s * k - q * l;
+			l = p * l - r * kTmp;
+			k.regularize();
+			l.regularize();
+			if (l == 0) { break; }
+			FormalPowerSeries qu, md;
+			getDivMod(k, l, &qu, &md);
+			xTmp = x;
+			yTmp = y;
+			x = u;
+			y = v;
+			u = xTmp - u * qu;
+			v = yTmp - v * md;
+			k = l;
+			l = md;
+		}
+		if (k.getDegree() > 0) {
+			FormalPowerSeries ret;
+			ret.state = -2;
+			return ret;
+		}
+		modint_for_fps iv = k.getCoeff(0).inv();
+		return x * iv;
 	}
 };
 
