@@ -843,6 +843,16 @@ public:
 		poly.resize(s);
 	}
 	int getState() const { return state; }
+	static FormalPowerSeries getInfPolynomial() {
+		FormalPowerSeries ret;
+		ret.state = -1;
+		return ret;
+	}
+	static FormalPowerSeries getInvalidPolynomial() {
+		FormalPowerSeries ret;
+		ret.state = -2;
+		return ret;
+	}
 	modint_for_fps evaluate(const modint_for_fps& v) const {
 		modint_for_fps ret = 0;
 		int n = getDegree();
