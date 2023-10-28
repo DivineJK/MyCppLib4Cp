@@ -760,16 +760,16 @@ public:
 	FormalPowerSeries operator*(const FormalPowerSeries& other) const {
 		return FormalPowerSeries(*this) *= other;
 	}
-	FormalPowerSeries operator*(int v) {
+	FormalPowerSeries operator*(int v) const {
 		return FormalPowerSeries(*this) *= v;
 	}
-	FormalPowerSeries operator*(uint32_t v) {
+	FormalPowerSeries operator*(uint32_t v) const {
 		return FormalPowerSeries(*this) *= v;
 	}
-	FormalPowerSeries operator*(int64_t v) {
+	FormalPowerSeries operator*(int64_t v) const {
 		return FormalPowerSeries(*this) *= v;
 	}
-	FormalPowerSeries operator*(uint64_t v) {
+	FormalPowerSeries operator*(uint64_t v) const {
 		return FormalPowerSeries(*this) *= v;
 	}
 	FormalPowerSeries operator*(const modint_for_fps& other) const {
