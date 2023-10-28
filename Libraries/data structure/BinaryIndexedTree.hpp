@@ -116,11 +116,10 @@ public:
 		return ret;
 	}
 	T getSegment(uint32_t l, uint32_t r) const {
-		if (l == 0) { return getSum(r); }
+		if (l > r) { return identity; }
 		return func(getSum(r), inv(getSum(l)));
 	}
 	T getValue(uint32_t i) const {
-		if (i == 0) { return arr[0]; }
 		return func(getSum(i + 1), inv(getSum(i)));
 	}
 };

@@ -245,9 +245,10 @@ public:
 		return os;
 	}
 	friend istream& operator>>(istream& ist, ModInt& other) {
-		uint64_t a;
+		int64_t a;
 		ist >> a;
-		other.x = a;
+		int v = a % mod();
+		other.x = (v < 0) ? v + umod() : v;
 		return ist;
 	}
 	explicit operator bool() const { return x != 0; }
