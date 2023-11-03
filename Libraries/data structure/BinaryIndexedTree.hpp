@@ -13,12 +13,12 @@ class BinaryIndexedTree {
 private:
 	function<T(T, T)> func;
 	function<T(T)> inv;
-	T identity = 0;
+	T unit = 0;
 	vector<T> arr;
 private:
 	void setArray(const vector<T>& aArr) {
 		uint32_t n = (uint32_t)aArr.size();
-		arr = vector<T>(n + 1, identity);
+		arr = vector<T>(n + 1, unit);
 		for (uint32_t i = 0; i < n; i++) {
 			uint32_t p = i + 1;
 			while (p <= n) {
@@ -32,7 +32,7 @@ private:
 		if (oldLen >= newLen) { return; }
 		arr.resize(newLen);
 		for (uint32_t i = oldLen; i < newLen; i++) {
-			arr[i] = identity;
+			arr[i] = unit;
 			if (i & 1) { continue; }
 			uint32_t p = i ^ (i & (i - 1));
 			if (i - p + 1 >= oldLen) { continue; }
@@ -48,32 +48,32 @@ private:
 	}
 public:
 	BinaryIndexedTree() {
-		identity = 0;
+		unit = 0;
 		func = [](T a, T b) { return a + b; };
 		inv = [](T a) { return -a; };
-		arr = vector<T>(1, identity);
+		arr = vector<T>(1, unit);
 	}
 	BinaryIndexedTree(uint32_t n) {
-		identity = 0;
+		unit = 0;
 		func = [](T a, T b) { return a + b; };
 		inv = [](T a) { return -a; };
-		arr = vector<T>(n + 1, identity);
+		arr = vector<T>(n + 1, unit);
 	}
 	BinaryIndexedTree(const vector<T>& aArr) { operator=(aArr); }
-	BinaryIndexedTree(const T& aId, const function<T(T, T)>& aFunc, const function<T(T)>& aInv) {
-		identity = aId;
+	BinaryIndexedTree(const T& aUnit, const function<T(T, T)>& aFunc, const function<T(T)>& aInv) {
+		unit = aUnit;
 		func = aFunc;
 		inv = aInv;
-		arr = vector<T>(1, aId);
+		arr = vector<T>(1, aUnit);
 	}
-	BinaryIndexedTree(uint32_t n, const T& aId, const function<T(T, T)>& aFunc, const function<T(T)>& aInv) {
-		identity = aId;
+	BinaryIndexedTree(uint32_t n, const T& aUnit, const function<T(T, T)>& aFunc, const function<T(T)>& aInv) {
+		unit = aUnit;
 		func = aFunc;
 		inv = aInv;
-		arr = vector<T>(n + 1, aId);
+		arr = vector<T>(n + 1, aUnit);
 	}
 	BinaryIndexedTree(const vector<T>& aArr, const T& aId, const function<T(T, T)>& aFunc, const function<T(T)>& aInv) {
-		identity = aId;
+		unit = aId;
 		func = aFunc;
 		inv = aInv;
 		setArray(aArr);
@@ -82,12 +82,12 @@ public:
 	BinaryIndexedTree& operator=(const BinaryIndexedTree& other) {
 		func = other.func;
 		inv = other.inv;
-		identity = other.identity;
+		unit = other.identity;
 		arr = other.arr;
 		return *this;
 	}
 	BinaryIndexedTree& operator=(const vector<T>& aArr) {
-		identity = 0;
+		unit = 0;
 		func = [](T a, T b) { return a + b; };
 		inv = [](T a) { return -a; };
 		setArray(aArr);
@@ -107,7 +107,7 @@ public:
 	}
 	T getSum(uint32_t i) const {
 		uint32_t n = (uint32_t)arr.size() - 1;
-		T ret = identity;
+		T ret = unit;
 		uint32_t p = (i >= n) ? n : i;
 		while (p) {
 			ret = func(ret, arr[p]);
@@ -116,7 +116,7 @@ public:
 		return ret;
 	}
 	T getSegment(uint32_t l, uint32_t r) const {
-		if (l > r) { return identity; }
+		if (l > r) { return unit; }
 		return func(getSum(r), inv(getSum(l)));
 	}
 	T getValue(uint32_t i) const {
