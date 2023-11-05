@@ -11,7 +11,7 @@
 template <typename T>
 class SegmentTree {
 private:
-	function<T(T, T)> func;
+	function<T(const T&, const T&)> func;
 	T unit;
 	vector<T> tree;
 private:
@@ -41,21 +41,21 @@ private:
 		}
 	}
 public:
-	SegmentTree(uint32_t n, const T& aUnit, const function<T(T, T)>& aFunc) {
-		tree = vector<T>(getBinMin(n) << 1, aUnit);
+	SegmentTree(uint32_t n, const T& aUnit, const function<T(const T&, const T&)>& aFunc) {
 		unit = aUnit;
 		func = aFunc;
+		tree = vector<T>(getBinMin(n) << 1, unit);
 	}
-	SegmentTree(const vector<T>& vec, const T& aUnit, const function<T(T, T)>& aFunc) {
+	SegmentTree(const vector<T>& vec, const T& aUnit, const function<T(const T&, const T&)>& aFunc) {
 		unit = aUnit;
 		func = aFunc;
 		setArray(vec);
 	}
 	SegmentTree(const SegmentTree& segtree) { operator=(segtree); }
 	SegmentTree& operator=(const SegmentTree& segtree) {
-		tree = segtree.tree;
+		unit = segtree.unit;
 		func = segtree.func;
-		unit = segtree.identity;
+		tree = segtree.tree;
 	}
 	uint32_t size() const { return (uint32_t)tree.size(); }
 	void setValue(uint32_t i, const T& v) {
@@ -80,46 +80,16 @@ public:
 		if (l >= b) { return unit; }
 		uint32_t rl = l + b;
 		uint32_t rr = r + b;
-		vector<uint32_t> ls, rs;
+		T retl = unit, retr = unit;
 		while (rl < rr) {
-			if (rl & 1) {
-				ls.push_back(rl);
-				rl++;
-			}
-			if (rr & 1) {
-				rs.push_back(rr - 1);
-				rr--;
-			}
+			if (rl & 1) { retl = func(retl, tree[rl++]); }
+			if (rr & 1) { retr = func(tree[--rr], retr); }
 			rl >>= 1;
 			rr >>= 1;
 		}
-		T ret = unit;
-		vector<uint32_t>::const_iterator it;
-		for (it = ls.cbegin(); it != ls.cend(); ++it) {
-			uint32_t idx = *it;
-			ret = func(ret, tree[idx]);
-		}
-		vector<uint32_t>::const_reverse_iterator rit;
-		for (rit = rs.crbegin(); rit != rs.crend(); ++rit) {
-			ret = func(ret, tree[*rit]);
-		}
-		return ret;
+		return func(retl, retr);
 	}
-	T getSum(uint32_t n) const {
-		uint32_t b = size() >> 1;
-		uint32_t idx = (n >= b) ? b << 1 : n + b;
-		vector<uint32_t> ids;
-		while (idx) {
-			if (idx & 1) { ids.push_back(idx - 1); }
-			idx >>= 1;
-		}
-		T ret = unit;
-		vector<uint32_t>::const_reverse_iterator rit;
-		for (rit = ids.crbegin(); rit != ids.crend(); ++rit) {
-			ret = func(ret, tree[*rit]);
-		}
-		return ret;
-	}
+	T getSum(uint32_t n) const { return getSegment(0, n); }
 };
 
 #endif /* SegmentTree_hpp */

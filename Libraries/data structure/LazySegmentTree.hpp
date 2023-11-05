@@ -8,17 +8,15 @@
 #ifndef LazySegmentTree_hpp
 #define LazySegmentTree_hpp
 
-template <typename MAIN_TYPE, typename LAZY_TYPE,
-const MAIN_TYPE& main_unit, const LAZY_TYPE& lazy_unit,
-const function<MAIN_TYPE(const MAIN_TYPE&, const MAIN_TYPE&)>& main_func,
-const function<MAIN_TYPE(uint32_t, uint32_t,
-						 const LAZY_TYPE&, const MAIN_TYPE&)>& map_func,
-const function<LAZY_TYPE(const LAZY_TYPE&, const LAZY_TYPE&)>& lazy_func>
+template <typename MAIN_TYPE, typename LAZY_TYPE>
 class LazySegmentTree {
+	using MAIN_FUNC_TYPE = function<MAIN_TYPE(const MAIN_TYPE&, const MAIN_TYPE&)>;
+	using MAP_FUNC_TYPE = function<MAIN_TYPE(uint32_t, uint32_t, const LAZY_TYPE&, const MAIN_TYPE&)>;
+	using LAZY_FUNC_TYPE = function<LAZY_TYPE(const LAZY_TYPE&, const LAZY_TYPE&)>;
 	struct MainStruct {
 		uint32_t l = 0;
 		uint32_t r = 0;
-		MAIN_TYPE val = main_unit;
+		MAIN_TYPE val;
 		MainStruct() {}
 		MainStruct(uint32_t aL, uint32_t aR, const MAIN_TYPE& aVal) {
 			l = aL;
@@ -27,6 +25,11 @@ class LazySegmentTree {
 		}
 	};
 private:
+	MAIN_TYPE main_unit;
+	LAZY_TYPE lazy_unit;
+	MAIN_FUNC_TYPE main_func;
+	MAP_FUNC_TYPE map_func;
+	LAZY_FUNC_TYPE lazy_func;
 	mutable vector<MainStruct> main_tree;
 	mutable vector<LAZY_TYPE> lazy_tree;
 	static constexpr uint32_t getBinMin(uint32_t a) {
@@ -121,16 +124,35 @@ private:
 		lazy_tree[idx] = lazy_unit;
 	}
 public:
-	LazySegmentTree(uint32_t n) {
+	LazySegmentTree(uint32_t n, const MAIN_TYPE& mu, const LAZY_TYPE& lu,
+					const MAIN_FUNC_TYPE& mf, const MAP_FUNC_TYPE& uf,
+					const LAZY_FUNC_TYPE& lf) {
+		main_unit = mu;
+		lazy_unit = lu;
+		main_func = mf;
+		map_func = uf;
+		lazy_func = lf;
 		lazy_tree = vector<LAZY_TYPE>(getBinMin(n) << 1, lazy_unit);
 		set_default(n);
 	}
-	LazySegmentTree(const vector<MAIN_TYPE>& arr) {
+	LazySegmentTree(const vector<MAIN_TYPE>& arr, const MAIN_TYPE& mu, const LAZY_TYPE& lu,
+					const MAIN_FUNC_TYPE& mf, const MAP_FUNC_TYPE& uf,
+					const LAZY_FUNC_TYPE& lf) {
+		main_unit = mu;
+		lazy_unit = lu;
+		main_func = mf;
+		map_func = uf;
+		lazy_func = lf;
 		lazy_tree = vector<LAZY_TYPE>(getBinMin((uint32_t)arr.size()) << 1, lazy_unit);
 		setArray(arr);
 	}
 	LazySegmentTree(const LazySegmentTree& other) { operator=(other); }
 	LazySegmentTree& operator=(const LazySegmentTree& other) {
+		main_unit = other.main_unit;
+		lazy_unit = other.lazy_unit;
+		main_func = other.main_func;
+		map_func = other.map_func;
+		lazy_func = other.lazy_func;
 		main_tree = other.main_tree;
 		lazy_tree = other.lazy_tree;
 	}
