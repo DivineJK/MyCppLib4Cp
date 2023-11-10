@@ -306,6 +306,15 @@ public:
 			return;
 		}
 		int n = (int)a->size(), m = (int)b.size();
+		if (n <= 128 && m <= 128) {
+			vector<modint> tmp = *a;
+			a->clear();
+			a->resize(n + m - 1);
+			for (int i = 0; i < n; i++) {
+				for (int j = 0; j < m; j++) { (*a)[i + j] += tmp[i] * b[j]; }
+			}
+			return;
+		}
 		int bas = 1, c = 0;
 		while (bas < n + m) {
 			bas <<= 1;
@@ -408,7 +417,7 @@ private:
 		return fpss[0];
 	}
 	static FormalPowerSeries compose_internal_lower_zero(const FormalPowerSeries& f,
-											  const FormalPowerSeries& q, int k) {
+														 const FormalPowerSeries& q, int k) {
 		int n = f.getDegree();
 		FormalPowerSeries ret = 0, rq = 1;
 		for (int i = 0; k * i <= n; i++) {
@@ -446,7 +455,7 @@ private:
 		return lps;
 	}
 	static void getDivMod_internal(const FormalPowerSeries& f, const FormalPowerSeries& g,
-						  FormalPowerSeries* outDiv, FormalPowerSeries* outRem) {
+								   FormalPowerSeries* outDiv, FormalPowerSeries* outRem) {
 		int n = f.getDegree(), m = g.getDegree();
 		if (n < m) {
 			*outDiv = 0;
@@ -1203,7 +1212,7 @@ public:
 		return ret;
 	}
 	static FormalPowerSeries getShiftedMonomialMod(const FormalPowerSeries& f,
-													   int m, const modint_for_fps& a) {
+												   int m, const modint_for_fps& a) {
 		int n = f.getDegree();
 		if (m <= 0 || n < 0) { return FormalPowerSeries(); }
 		vector<modint_for_fps> t(n / m + 1);
@@ -1415,6 +1424,39 @@ public:
 		}
 		modint_for_fps iv = k.getCoeff(0).inv();
 		return x * iv;
+	}
+	static modint_for_fps getFactorialLarge(uint32_t n) {
+		if (n == 0) { return 1; }
+		uint32_t l = 0, r = (n <= (1 << 16)) ? n + 1 : 1 << 16;
+		int m = r >> 1;
+		while (r - l > 1) {
+			if (m * m <= n) { l = m; }
+			else { r = m; }
+			m = l + ((r - l) >> 1);
+		}
+		uint32_t sq = m * m;
+		modint_for_fps rem = 1;
+		for (uint32_t i = 1; i <= n - sq; i++) {
+			rem *= (sq + i);
+		}
+		vector<FormalPowerSeries> fpss(m);
+		for (uint32_t i = 1; i <= m; i++) {
+			fpss[i - 1] = FormalPowerSeries(vector<uint32_t>({i, 1}));
+		}
+		uint32_t len = m;
+		while (len > 1) {
+			for (uint32_t i = 0; ((i << 1) | 1) < len; i++) {
+				fpss[i] = fpss[i << 1] * fpss[(i << 1) | 1];
+			}
+			if (len & 1) { fpss[0] *= fpss[len - 1]; }
+			len >>= 1;
+		}
+		vector<modint_for_fps> vec(m);
+		for (uint32_t i = 0; i < m; i++) { vec[i] = i * m; }
+		vec = fpss[0].evaluateMultipoint(vec);
+		modint_for_fps ret = rem;
+		for (int i = 0; i < m; i++) { ret *= vec[i]; }
+		return ret;
 	}
 };
 
