@@ -604,12 +604,12 @@ public:
 	}
 	template <typename S>
 	static ModintMatrix pow(const ModintMatrix& mat, S aExp) {
-		assert(mat.row == mat.column);
-		ModintMatrix ret = getIdentity(mat.row);
-		ModintMatrix b = (aExp < 0) ? mat : mat.getInverted();
+		assert(mat.getRow() == mat.getColumn());
+		ModintMatrix ret = getIdentity(mat.getRow());
+		ModintMatrix b = (aExp >= 0) ? mat : mat.getInverted();
 		while (aExp) {
 			if (aExp & 1) { ret *= b; }
-			b *= b;
+			b *= ModintMatrix(b);
 			aExp >>= 1;
 		}
 		return ret;

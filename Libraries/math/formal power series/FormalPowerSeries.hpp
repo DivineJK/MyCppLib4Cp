@@ -1427,36 +1427,47 @@ public:
 	}
 	static modint_for_fps getFactorialLarge(uint32_t n) {
 		if (n == 0) { return 1; }
-		uint32_t l = 0, r = (n <= (1 << 16)) ? n + 1 : 1 << 16;
-		int m = r >> 1;
-		while (r - l > 1) {
-			if (m * m <= n) { l = m; }
-			else { r = m; }
-			m = l + ((r - l) >> 1);
-		}
-		uint32_t sq = m * m;
-		modint_for_fps rem = 1;
-		for (uint32_t i = 1; i <= n - sq; i++) {
-			rem *= (sq + i);
-		}
-		vector<FormalPowerSeries> fpss(m);
-		for (uint32_t i = 1; i <= m; i++) {
-			fpss[i - 1] = FormalPowerSeries(vector<uint32_t>({i, 1}));
-		}
-		uint32_t len = m;
-		while (len > 1) {
-			for (uint32_t i = 0; ((i << 1) | 1) < len; i++) {
-				fpss[i] = fpss[i << 1] * fpss[(i << 1) | 1];
+		if (n >= MOD_FOR_FPS) { return 0; }
+		static constexpr uint32_t block_size = 65536;
+		static constexpr uint32_t quo = MOD_FOR_FPS / block_size;
+		static bool need_make = true;
+		static vector<FormalPowerSeries> fact_fpss(block_size);
+		static vector<modint_for_fps> fact_vec(quo);
+		if (need_make) {
+			need_make = false;
+			for (uint32_t i = 1; i <= block_size; i++) {
+				fact_fpss[i - 1] = FormalPowerSeries(vector<uint32_t>({i, 1}));
 			}
-			if (len & 1) { fpss[0] *= fpss[len - 1]; }
-			len >>= 1;
+			uint32_t p = 2, q = 1;
+			while (q < block_size) {
+				for (uint32_t i = 0; i < block_size; i += p) {
+					fact_fpss[i] *= fact_fpss[i + q];
+				}
+				q <<= 1;
+				p <<= 1;
+			}
+			for (uint32_t i = 0; i < quo; i++) { fact_vec[i] = i * block_size; }
+			fact_vec = fact_fpss[0].evaluateMultipoint(fact_vec);
 		}
-		vector<modint_for_fps> vec(m);
-		for (uint32_t i = 0; i < m; i++) { vec[i] = i * m; }
-		vec = fpss[0].evaluateMultipoint(vec);
-		modint_for_fps ret = rem;
-		for (int i = 0; i < m; i++) { ret *= vec[i]; }
+		uint32_t rem = n % block_size;
+		uint32_t nq = n / block_size;
+		modint_for_fps ret = 1;
+		for (uint32_t i = n - rem; i < n; i++) { ret *= i + 1; }
+		for (int i = 0; i < nq; i++) { ret *= fact_vec[i]; }
 		return ret;
+	}
+	static modint_for_fps getCombinationLarge(uint32_t n, uint32_t k) {
+		if (n < k) { return 0; }
+		function<uint32_t(uint32_t)> cntf = [](uint32_t num) {
+			uint32_t ret = 0;
+			while (num) {
+				num /= MOD_FOR_FPS;
+				ret += num;
+			}
+			return ret;
+		};
+		if (cntf(n) < cntf(k) + cntf(n - k)) { return 0; }
+		return getFactorialLarge(n) * getFactorialLarge(k).inv() * getFactorialLarge(n - k).inv();
 	}
 };
 
