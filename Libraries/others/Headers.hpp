@@ -85,6 +85,10 @@ ostream& operator<<(ostream& os, const vector<vector<T>>& mat) {
 	return os;
 }
 template <typename T>
+void readVector(vector<T>* vec) {
+	for (size_t i = 0; i < vec->size(); i++) { cin >> (*vec)[i]; }
+}
+template <typename T>
 void printVector(const vector<T>& vec) {
 	if (vec.size() == 0) {
 		cout << '\n';

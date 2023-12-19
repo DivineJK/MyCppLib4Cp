@@ -87,13 +87,12 @@ public:
 	}
 	int get_base_size() const { return base_size; }
 };
+static unordered_map<uint32_t, unique_ptr<internal_primitive_bases>> primitive_bases;
 }
-
-using mint_prim_base = modint_internal::internal_primitive_bases;
-static unordered_map<uint32_t, unique_ptr<mint_prim_base>> primitive_bases;
 
 template <int MOD>
 class ModInt {
+	using mint_prim_base = modint_internal::internal_primitive_bases;
 private:
 	uint32_t x = 0;
 	static constexpr int PRE_MOD_21 = 924844033;
@@ -121,10 +120,12 @@ private:
 		}
 		return true;
 	}
-	static void make_base(uint32_t m) { primitive_bases[m] = make_unique<mint_prim_base>(m); }
+	static void make_base(uint32_t m) { modint_internal::primitive_bases[m] = make_unique<mint_prim_base>(m); }
 	static mint_prim_base* get_bases(uint32_t m) {
-		if (primitive_bases.find(m) == primitive_bases.end()) { make_base(m); }
-		return primitive_bases[m].get();
+		if (modint_internal::primitive_bases.find(m) == modint_internal::primitive_bases.end()) {
+			make_base(m);
+		}
+		return modint_internal::primitive_bases[m].get();
 	}
 	static int get_base(int m, int t, int idx) { return get_bases(m)->get_base(t, idx); }
 	static void ntt(vector<ModInt>* arr) {
@@ -184,7 +185,9 @@ private:
 	}
 	static bool is_prepared() {
 		if (is_prepared_base()) { return true; }
-		if (primitive_bases.find(MOD) != primitive_bases.end()) { return true; }
+		if (modint_internal::primitive_bases.find(MOD) != modint_internal::primitive_bases.end()) {
+			return true;
+		}
 		if (!is_prime(MOD)) { return false; }
 		int p = MOD - 1;
 		for (int i = 0; i < 20; i++) {
@@ -480,6 +483,112 @@ public:
 			int t = umod() % i;
 			(*invn)[i] = (umod() - umod() / i) * (*invn)[t];
 		}
+	}
+	static vector<ModInt> getMontmort(size_t n) {
+		if (n == 0) { return {}; }
+		vector<ModInt> ret(n);
+		ret[0] = 0;
+		for (size_t i = 1; i < n; i++) {
+			ret[i] = ret[i - 1] * (i + 1) + ((i & 1) ? 1 : -1);
+		}
+		return ret;
+	}
+	static vector<ModInt> getPowerTable(size_t n, uint32_t k) {
+		vector<ModInt> ret(n + 1, 1);
+		if (k == 0) {
+			for (int i = 0; i <= n; i++) { ret[i] = 1; }
+			return ret;
+		}
+		if (k == 1) {
+			for (int i = 0; i <= n; i++) { ret[i] = i; }
+			return ret;
+		}
+		ret[0] = 0;
+		if (n == 0) { return ret; }
+		vector<bool> flg(n + 1, false);
+		for (int i = 2; i <= n; i++) {
+			if (i % mod() == 0 || flg[i]) { continue; }
+			ret[i] = pow(i, k);
+			flg[i] = true;
+			for (int j = 2; j * i <= n && j <= i; j++) {
+				ret[i * j] = ret[i] * ret[j];
+				flg[i * j] = true;
+			}
+		}
+		return ret;
+	}
+	static ModInt getStirlingFirst(uint64_t n, uint64_t k) {
+		static vector<vector<ModInt>> seeds(mod(), vector<ModInt>(mod(), 0));
+		static bool needCalc = true;
+		if (needCalc) {
+			needCalc = false;
+			seeds[0][0] = 1;
+			for (int i = 1; i < mod(); i++) {
+				seeds[i][0] = 0;
+				for (int j = 1; j < mod(); j++) {
+					seeds[i][j] = seeds[i - 1][j - 1] - (i - 1) * seeds[i - 1][j];
+				}
+			}
+		}
+		if (k < n / mod()) { return 0; }
+		uint64_t q = n / mod();
+		if ((k - q) % (mod() - 1) > n % mod()) { return 0; }
+		ModInt ret = 0;
+		function<ModInt(uint64_t, uint64_t)> vf = [n, k, q](uint64_t l, uint64_t m) {
+			ModInt s = ((q - l) & 1) ? -1 : 1;
+			return getCombinationOne(q, l) * s * seeds[n % mod()][m];
+		};
+		if (n % mod() == -1 && (k - q) % (mod() - 1) == 0 && (k - q) + 1 >= mod()) {
+			ret = vf((k - q + 1 - mod()) / (mod() - 1), mod() - 1);
+		}
+		return ret + vf((k - q) / (mod() - 1), (k - q) % (mod() - 1));
+	}
+	static ModInt getStirlingSecond(uint64_t n, uint64_t k) {
+		static vector<vector<ModInt>> seeds(mod(), vector<ModInt>(mod(), 0));
+		static bool needCalc = true;
+		if (needCalc) {
+			needCalc = false;
+			seeds[0][0] = 1;
+			for (int i = 1; i < mod(); i++) {
+				seeds[i][0] = 0;
+				for (int j = 1; j < mod(); j++) {
+					seeds[i][j] = seeds[i - 1][j - 1] + j * seeds[i - 1][j];
+				}
+			}
+		}
+		if (n < k) { return 0; }
+		if (n < mod()) { return seeds[n][k]; }
+		uint64_t q0 = k / mod(), r0 = k % mod();
+		uint64_t q1 = (n - 1 - q0) / (mod() - 1), r1 = (n - 1 - q0) % (mod() - 1);
+		if (r1 < mod() - 2) {
+			return getCombinationOne(q1, q0) * seeds[1 + r1][r0];
+		} else if (r1 == mod() - 2) {
+			if (r1 != 0) {
+				return getCombinationOne(q1, q0 - 1);
+			} else {
+				return getCombinationOne(q1, q0) * seeds[mod() - 1][r1];
+			}
+		}
+		assert(false);
+		return 0;
+	}
+	static ModInt getCombinationOne(uint64_t n, uint64_t k) {
+		assert(is_prime(mod()));
+		static vector<ModInt> fact, invf;
+		static bool needCalc = true;
+		if (needCalc) {
+			needCalc = false;
+			get_fact_table(mod() - 1, &fact, &invf);
+		}
+		ModInt ret = 1;
+		while (n) {
+			int n0 = n % mod(), k0 = k % mod();
+			if (n0 < k0 || n0 < 0 || k0 < 0) { return 0; }
+			ret *= fact[n0] * invf[k0] * invf[n0 - k0];
+			n /= mod();
+			k /= mod();
+		}
+		return ret;
 	}
 };
 

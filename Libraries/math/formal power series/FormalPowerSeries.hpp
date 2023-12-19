@@ -370,6 +370,30 @@ public:
 			(*invn)[i] = (INTERNAL_MOD - INTERNAL_MOD / i) * (*invn)[t];
 		}
 	}
+	static vector<modint> getPowerTable(size_t n, uint32_t k) {
+		vector<modint> ret(n + 1, 1);
+		if (k == 0) {
+			for (int i = 0; i <= n; i++) { ret[i] = 1; }
+			return ret;
+		}
+		if (k == 1) {
+			for (int i = 0; i <= n; i++) { ret[i] = i; }
+			return ret;
+		}
+		ret[0] = 0;
+		if (n == 0) { return ret; }
+		vector<bool> flg(n + 1, false);
+		for (int i = 2; i <= n; i++) {
+			if (i % INTERNAL_MOD == 0 || flg[i]) { continue; }
+			ret[i] = pow(i, k);
+			flg[i] = true;
+			for (int j = 2; j * i <= n && j <= i; j++) {
+				ret[i * j] = ret[i] * ret[j];
+				flg[i * j] = true;
+			}
+		}
+		return ret;
+	}
 };
 
 }	// namespace fps_internal
@@ -871,6 +895,15 @@ public:
 		}
 		return ret;
 	}
+	FormalPowerSeries& scaleX(const modint_for_fps& r) {
+		modint_for_fps c = 1;
+		int n = (int)getDegree();
+		for (int i = 0; i <= n; i++) {
+			(*this)[i] *= c;
+			c *= r;
+		}
+		return *this;
+	}
 	FormalPowerSeries& reverse() {
 		int n = getDegree();
 		for (int i = 0; 2 * i < n; i++) {
@@ -968,6 +1001,9 @@ public:
 		for (int i = 0; i <= n; i++) { (*this)[i] = a[n - i] * invn[i]; }
 		return *this;
 	}
+	FormalPowerSeries getScaledX(const modint_for_fps& r) const {
+		return FormalPowerSeries(*this).scaleX(r);
+	}
 	FormalPowerSeries getReversed() const { return FormalPowerSeries(*this).reverse(); }
 	FormalPowerSeries getDifferentiated() const { return FormalPowerSeries(*this).differentiate(); }
 	FormalPowerSeries getIntegrated() const { return FormalPowerSeries(*this).integrate(); }
@@ -1008,6 +1044,43 @@ public:
 		}
 		vector<modint_for_fps> ret(n);
 		for (int i = 0; i < n; i++) { ret[i] = fpss[lg + i].getCoeff(0); }
+		return ret;
+	}
+	vector<modint_for_fps> evaluateMultipoint_Geometric(size_t m, const modint_for_fps& a,
+														const modint_for_fps& r) const {
+		if (m == 0) { return {}; }
+		if (a == 0) { return vector<modint_for_fps>(m, getCoeff(0)); }
+		if (r == 0) {
+			vector<modint_for_fps> ret(m, getCoeff(0));
+			ret[0] = evaluate(a);
+			return ret;
+		}
+		size_t n = getDegree() + 1;
+		vector<modint_for_fps> u(n);
+		vector<modint_for_fps> v(n + m - 1);
+		vector<modint_for_fps> ret(m);
+		modint_for_fps ir = r.inv(), ar = 1, cir = 1;
+		for (size_t i = 0; i < n; i++) {
+			u[i] = getCoeff(i) * ar;
+			cir *= ir;
+			ar *= a * cir;
+		}
+		cir = 1;
+		ar = 1;
+		for (size_t i = 0; i < m; i++) {
+			ret[i] = ar;
+			cir *= ir;
+			ar *= cir;
+		}
+		ar = 1;
+		modint_for_fps cr = 1;
+		for (size_t i = n + m - 1; i > 0; i--) {
+			v[i - 1] = ar;
+			cr *= r;
+			ar *= cr;
+		}
+		modint_for_fps::convolve(&u, v);
+		for (size_t i = 0; i < m; i++) { ret[i] *= u[n + m - 2 - i]; }
 		return ret;
 	}
 	static void getDivMod(const FormalPowerSeries& f, const FormalPowerSeries& g,
@@ -1158,6 +1231,38 @@ public:
 		fpss2[1].setDegree(n - 1);
 		return fpss2[1];
 	}
+	static FormalPowerSeries interpolate_Geometry(const modint_for_fps& a,
+												  const modint_for_fps& r,
+												  const vector<modint_for_fps>& y) {
+		int n = (int)y.size();
+		if (n == 0) { return FormalPowerSeries(); }
+		vector<modint_for_fps> s(n, 1);
+		modint_for_fps cr = 1;
+		for (int i = 1; i < n; i++) {
+			cr *= r;
+			s[i] = s[i - 1] * (1 - cr).inv();
+		}
+		modint_for_fps cr1 = 1, cr2 = modint_for_fps::pow(r, 2 - n);
+		vector<modint_for_fps> ny(n);
+		for (int i = 0; i < n; i++) {
+			ny[i] = y[i] * cr1 * s[i] * s[n - i - 1];
+			cr1 *= -cr2;
+			cr2 *= r;
+		}
+		FormalPowerSeries f = getBinomialExponentialProduct(n, r);
+		f.scaleX(-a);
+		f /= modint_for_fps::pow(a, n - 1);
+		FormalPowerSeries g = ny;
+		g.setDegree(n - 1);
+		ny = g.evaluateMultipoint_Geometric(n, 1, r);
+		g = FormalPowerSeries(ny);
+		g.scaleX(a);
+		f *= g;
+		f.setDegree(n - 1);
+		f.reverse();
+		f.setDegree(n - 1);
+		return f;
+	}
 	static FormalPowerSeries getProduct(const vector<FormalPowerSeries>& polys) {
 		int n = (int)polys.size();
 		if (n == 0) {
@@ -1222,6 +1327,25 @@ public:
 		ret.setDegree(m - 1);
 		for (int i = 0; i <= n; i++) { ret[i % m] += t[i / m] * f[i]; }
 		ret.regularize();
+		return ret;
+	}
+	static modint_for_fps evaluateSampledPolynomial(const modint_for_fps& a,
+													const vector<modint_for_fps>& val) {
+		modint_for_fps ret = 0;
+		int n = (int)val.size();
+		vector<modint_for_fps> invf;
+		modint_for_fps::get_fact_table(n, nullptr, &invf);
+		vector<modint_for_fps> ps(n, 1);
+		for (int i = 1; i < n; i++) { ps[i] = ps[i - 1] * (a - i + 1); }
+		modint_for_fps p = 1;
+		for (int i = n; i > 0; i--) {
+			ps[i - 1] *= p;
+			p *= a - i + 1;
+		}
+		for (int i = 0; i < n; i++) {
+			modint_for_fps v = val[i] * ps[i] * invf[i] * invf[n - i - 1];
+			if ((n - 1 - i) & 1) { ret -= v; } else { ret += v; }
+		}
 		return ret;
 	}
 	static vector<modint_for_fps> getShiftedSamplingPoints(const vector<modint_for_fps>& val,
@@ -1303,6 +1427,26 @@ public:
 		}
 		return exp(fps);
 	}
+	static modint_for_fps getPowerSum(size_t n, uint32_t d) {
+		vector<modint_for_fps> nums = modint_for_fps::getPowerTable(d + 1, d);
+		vector<modint_for_fps> vals(d + 2);
+		vals[0] = nums[0];
+		for (int i = 1; i < d + 2; i++) { vals[i] = vals[i - 1] + nums[i]; }
+		return evaluateSampledPolynomial((uint64_t)n, vals);
+	}
+	static FormalPowerSeries getBinomialExponentialProduct(int deg, const modint_for_fps& q) {
+		if (q == 0) { return 1; }
+		if (q == 1) { return getBinomialExpansion(deg); }
+		FormalPowerSeries ret;
+		ret.setDegree(deg);
+		ret[0] = 1;
+		modint_for_fps cq = 1, qn = modint_for_fps::pow(q, deg);
+		for (int i = 1; i <= deg; i++) {
+			ret[i] = (cq - qn) / (1 - cq * q) * ret[i - 1];
+			cq *= q;
+		}
+		return ret;
+	}
 	static FormalPowerSeries getStirlingFirst(int n) {
 		uint32_t lg = getMinBinary(n);
 		uint32_t b = lg >> 1;
@@ -1317,6 +1461,17 @@ public:
 			b >>= 1;
 		}
 		return fpss[0];
+	}
+	static FormalPowerSeries getStirlingFirst_FixedK(int n, int k) {
+		vector<modint_for_fps> fact, invf, invn;
+		modint_for_fps::get_fact_table(n, &fact, &invf);
+		FormalPowerSeries fps;
+		fps.setDegree(n);
+		for (size_t i = 0; i <= n; i++) { fps[i] = (i & 1) ? -1 : 1; }
+		fps = pow(fps.integrate(), k, n + 1);
+		fps.setDegree(n);
+		for (size_t i = 0; i <= n; i++) { fps[i] *= fact[i] * invf[k]; }
+		return fps;
 	}
 	static FormalPowerSeries getStirlingSecond(int n) {
 		vector<modint_for_fps> invf;
@@ -1468,6 +1623,49 @@ public:
 		};
 		if (cntf(n) < cntf(k) + cntf(n - k)) { return 0; }
 		return getFactorialLarge(n) * getFactorialLarge(k).inv() * getFactorialLarge(n - k).inv();
+	}
+	static modint_for_fps getGeometricExpSumInf(const modint_for_fps& r,
+												uint32_t d) {
+		vector<modint_for_fps> nums = modint_for_fps::getPowerTable(d + 1, d);
+		modint_for_fps fd = 1;
+		for (int i = 0; i < d + 1; i++) { fd *= i + 1; }
+		vector<modint_for_fps> invf(d + 2);
+		invf[d + 1] = fd.inv();
+		for (int i = d + 1; i > 0; i--) { invf[i - 1] = invf[i] * i; }
+		modint_for_fps cr = 1;
+		for (int i = 1; i <= d + 1; i++) {
+			cr *= r;
+			nums[i] = nums[i - 1] + cr * nums[i];
+		}
+		cr = 1;
+		modint_for_fps ret = 0;
+		for (int i = 0; i <= d + 1; i++) {
+			ret += cr * invf[i] * invf[d + 1 - i] * nums[d + 1 - i];
+			cr *= -r;
+		}
+		return ret * fd / modint_for_fps::pow(1 - r, d + 1);
+	}
+	static modint_for_fps getGeometricExpSum(const modint_for_fps& r, uint32_t d,
+											 size_t n) {
+		if (r == 1) { return getPowerSum(n, d); }
+		if (r == 0) { return (d == 0) ? 1 : 0; }
+		modint_for_fps c = getGeometricExpSumInf(r, d);
+		vector<modint_for_fps> nums = modint_for_fps::getPowerTable(d, d);
+		nums[0] -= c;
+		modint_for_fps cr = 1;
+		for (uint32_t i = 1; i <= d; i++) {
+			cr *= r;
+			nums[i] = cr * nums[i] + nums[i - 1];
+		}
+		modint_for_fps ir = r.inv(), dr = modint_for_fps::pow(1 - r, d + 1);
+		cr = 1;
+		for (uint32_t i = 0; i <= d; i++) {
+			cr *= ir;
+			nums[i] *= cr * dr;
+		}
+		modint_for_fps ret = evaluateSampledPolynomial((uint64_t)n, nums);
+		ret *= modint_for_fps::pow(r, n + 1) * dr.inv();
+		return ret + c;
 	}
 };
 
