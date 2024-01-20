@@ -474,6 +474,7 @@ private:
 		FormalPowerSeries lps = f;
 		lps.setDegree((int)modDeg - 1);
 		lps = m * log(lps);
+		lps.setDegree((int)modDeg - 1);
 		lps = exp(lps);
 		lps.crop(modDeg);
 		return lps;
@@ -1485,6 +1486,16 @@ public:
 		f *= g;
 		f.setDegree(n);
 		return f;
+	}
+	static FormalPowerSeries getStirlingSecond_FixedK(int n, int k) {
+		vector<modint_for_fps> fact, invf;
+		modint_for_fps::get_fact_table(n, &fact, &invf);
+		FormalPowerSeries fps;
+		fps.setDegree(n);
+		for (int i = 1; i <= n; i++) { fps[i] = invf[i]; }
+		fps = pow(fps, k, n + 1);
+		for (int i = 0; i <= n; i++) { fps[i] *= fact[i] * invf[k]; }
+		return fps;
 	}
 	static FormalPowerSeries countSubsetSum(const vector<uint32_t>& s, uint32_t lim) {
 		int n = (int)s.size();

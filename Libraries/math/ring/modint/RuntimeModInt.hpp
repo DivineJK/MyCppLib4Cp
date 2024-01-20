@@ -603,7 +603,7 @@ public:
 	}
 	static RuntimeModInt getStirlingFirst(uint64_t n, uint64_t k) {
 		static vector<vector<RuntimeModInt>> seeds(mod(), vector<RuntimeModInt>(mod(), 0));
-		static int preCalcMod = mod();
+		static int preCalcMod = -1;
 		if (preCalcMod != mod()) {
 			preCalcMod = mod();
 			seeds[0][0] = 1;
@@ -618,18 +618,18 @@ public:
 		uint64_t q = n / mod();
 		if ((k - q) % (mod() - 1) > n % mod()) { return 0; }
 		RuntimeModInt ret = 0;
-		function<RuntimeModInt(uint64_t, uint64_t)> vf = [n, k, q](uint64_t l, uint64_t m) {
-			RuntimeModInt s = ((q - l) & 1) ? -1 : 1;
+		function<RuntimeModInt(uint64_t, uint64_t)> vf = [n, q](uint64_t l, uint64_t m) {
+			RuntimeModInt s = ((q & 1) == (l & 1)) ? 1 : -1;
 			return getCombinationOne(q, l) * s * seeds[n % mod()][m];
 		};
-		if (n % mod() == -1 && (k - q) % (mod() - 1) == 0 && (k - q) + 1 >= mod()) {
+		if ((n + 1) % mod() == 0 && (k - q) % (mod() - 1) == 0 && k - q + 1 >= mod()) {
 			ret = vf((k - q + 1 - mod()) / (mod() - 1), mod() - 1);
 		}
 		return ret + vf((k - q) / (mod() - 1), (k - q) % (mod() - 1));
 	}
 	static RuntimeModInt getStirlingSecond(uint64_t n, uint64_t k) {
 		static vector<vector<RuntimeModInt>> seeds(mod(), vector<RuntimeModInt>(mod(), 0));
-		static int preCalcMod = mod();
+		static int preCalcMod = -1;
 		if (preCalcMod != mod()) {
 			preCalcMod = mod();
 			seeds[0][0] = 1;
@@ -644,29 +644,24 @@ public:
 		if (n < mod()) { return seeds[n][k]; }
 		uint64_t q0 = k / mod(), r0 = k % mod();
 		uint64_t q1 = (n - 1 - q0) / (mod() - 1), r1 = (n - 1 - q0) % (mod() - 1);
-		if (r1 < mod() - 2) {
-			return getCombinationOne(q1, q0) * seeds[1 + r1][r0];
-		} else if (r1 == mod() - 2) {
-			if (r1 != 0) {
-				return getCombinationOne(q1, q0 - 1);
-			} else {
-				return getCombinationOne(q1, q0) * seeds[mod() - 1][r1];
-			}
+		RuntimeModInt ret = getCombinationOne(q1, q0) * seeds[r1 + 1][r0];
+		if (r1 == mod() - 2 && q0 > 0) {
+			ret += getCombinationOne(q1, q0 - 1) * seeds[0][r0];
 		}
-		assert(false);
-		return 0;
+		return ret;
 	}
 	static RuntimeModInt getCombinationOne(uint64_t n, uint64_t k) {
 		assert(is_prime(mod()));
 		static vector<RuntimeModInt> fact, invf;
-		static int preCalcMod = mod();
+		static int preCalcMod = -1;
 		if (preCalcMod != mod()) {
 			preCalcMod = mod();
-			get_fact_table(mod(), &fact, &invf);
+			get_fact_table(mod() - 1, &fact, &invf);
 		}
 		RuntimeModInt ret = 1;
 		while (n) {
 			int n0 = n % mod(), k0 = k % mod();
+			if (n0 < k0 || n0 < 0 || k0 < 0) { return 0; }
 			ret *= fact[n0] * invf[k0] * invf[n0 - k0];
 			n /= mod();
 			k /= mod();

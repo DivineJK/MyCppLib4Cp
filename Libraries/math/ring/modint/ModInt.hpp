@@ -534,11 +534,11 @@ public:
 		uint64_t q = n / mod();
 		if ((k - q) % (mod() - 1) > n % mod()) { return 0; }
 		ModInt ret = 0;
-		function<ModInt(uint64_t, uint64_t)> vf = [n, k, q](uint64_t l, uint64_t m) {
-			ModInt s = ((q - l) & 1) ? -1 : 1;
+		function<ModInt(uint64_t, uint64_t)> vf = [n, q](uint64_t l, uint64_t m) {
+			ModInt s = ((q & 1) == (l & 1)) ? 1 : -1;
 			return getCombinationOne(q, l) * s * seeds[n % mod()][m];
 		};
-		if (n % mod() == -1 && (k - q) % (mod() - 1) == 0 && (k - q) + 1 >= mod()) {
+		if ((n + 1) % mod() == 0 && (k - q) % (mod() - 1) == 0 && (k - q) + 1 >= mod()) {
 			ret = vf((k - q + 1 - mod()) / (mod() - 1), mod() - 1);
 		}
 		return ret + vf((k - q) / (mod() - 1), (k - q) % (mod() - 1));
@@ -560,17 +560,11 @@ public:
 		if (n < mod()) { return seeds[n][k]; }
 		uint64_t q0 = k / mod(), r0 = k % mod();
 		uint64_t q1 = (n - 1 - q0) / (mod() - 1), r1 = (n - 1 - q0) % (mod() - 1);
-		if (r1 < mod() - 2) {
-			return getCombinationOne(q1, q0) * seeds[1 + r1][r0];
-		} else if (r1 == mod() - 2) {
-			if (r1 != 0) {
-				return getCombinationOne(q1, q0 - 1);
-			} else {
-				return getCombinationOne(q1, q0) * seeds[mod() - 1][r1];
-			}
+		ModInt ret = getCombinationOne(q1, q0) * seeds[r1 + 1][r0];
+		if (r1 == mod() - 2 && q0 > 0) {
+			ret += getCombinationOne(q1, q0 - 1) * seeds[0][r0];
 		}
-		assert(false);
-		return 0;
+		return ret;
 	}
 	static ModInt getCombinationOne(uint64_t n, uint64_t k) {
 		assert(is_prime(mod()));
