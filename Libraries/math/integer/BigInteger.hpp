@@ -5,8 +5,8 @@
 //  Created by DivineJK on 2023/09/10.
 //
 
-#ifndef BigInt_hpp
-#define BigInt_hpp
+#ifndef BigInteger_hpp
+#define BigInteger_hpp
 
 namespace bint_internal {
 static constexpr int MOD_0 = 880803841;
