@@ -269,6 +269,26 @@ private:
 		}
 		return true;
 	}
+	static void fht(vector<RuntimeModInt>* a) {
+		size_t n = a->size();
+		if (n <= 1) { return; }
+		size_t m = 1;
+		if (n & (n - 1)) {
+			while (m < n) { m <<= 1; }
+			a->resize(m);
+		} else {
+			m = n;
+		}
+		for (size_t i = 1; i <= (m >> 1); i <<= 1) {
+			for (size_t j = 0; j < m; j += (i << 1)) {
+				for (size_t k = j; k < j + i; k++) {
+					RuntimeModInt x = (*a)[k], y = (*a)[k + i];
+					(*a)[k] = x + y;
+					(*a)[k + i] = x - y;
+				}
+			}
+		}
+	}
 public:
 	static int& mod() {
 		static int m = 0;
@@ -667,6 +687,29 @@ public:
 			k /= mod();
 		}
 		return ret;
+	}
+	static void convolve_xor_prod(vector<RuntimeModInt>* a,
+									 const vector<RuntimeModInt>& b) {
+		if (a->size() == 0 || b.size() == 0) {
+			a->clear();
+			return;
+		}
+		size_t n = max(a->size(), b.size());
+		if (n & (n - 1)) {
+			size_t m = 1;
+			while (m < n) { m <<= 1; }
+			n = m;
+		}
+		a->resize(n);
+		vector<RuntimeModInt> y = b;
+		y.resize(n);
+		fht(a);
+		fht(&y);
+		for (size_t i = 0; i < n; i++) { (*a)[i] *= y[i]; }
+		fht(a);
+		RuntimeModInt iv = (uint64_t)n;
+		iv = iv.inv();
+		for (size_t i = 0; i < n; i++) { (*a)[i] *= iv; }
 	}
 };
 
