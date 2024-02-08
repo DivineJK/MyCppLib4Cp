@@ -133,6 +133,20 @@ private:
 		}
 		return t;
 	}
+	static int extended_inv_raw(int md, int v) {
+		if (v == 0) { return v; }
+		int a = 1, b = 0, c = 0, d = 1, k = v, l = md;
+		while (l > 0) {
+			int t1 = a, t2 = b, t3 = k;
+			a = c;
+			b = d;
+			c = t1 - c * (k / l);
+			d = t2 - d * (k / l);
+			k = l;
+			l = t3 % l;
+		}
+		return (a % md < 0) ? md + a % md : a % md;
+	}
 	static void ntt(int md, vector<uint32_t>* arr) {
 		size_t n = arr->size();
 		if (n <= 1) { return; }
@@ -289,6 +303,138 @@ private:
 			}
 		}
 	}
+	static vector<pair<int, int>>& factorize_mod() {
+		static int preCalcMod = -1;
+		static vector<pair<int, int>> ret;
+		if (preCalcMod == mod()) { return ret; }
+		preCalcMod = mod();
+		ret.clear();
+		int n = mod();
+		int a = n, p = 3;
+		int cnt = 0;
+		while (a % 2 == 0) {
+			cnt++;
+			a >>= 1;
+		}
+		if (cnt) { ret.push_back(make_pair(2, cnt)); }
+		while (a != 1) {
+			cnt = 0;
+			while (a % p == 0) {
+				cnt++;
+				a /= p;
+			}
+			if (cnt) { ret.push_back(make_pair(p, cnt)); }
+			p += 2;
+			if (p * p > n && a != 1) {
+				ret.push_back(make_pair(a, 1));
+				break;
+			}
+		}
+		return ret;
+	}
+	static void getSkippedFactTable(int p, int q, vector<int>* fact, vector<int>* invf) {
+		int n = 1;
+		for (int i = 0; i < q; i++) { n *= p; }
+		fact->resize(n);
+		invf->resize(n);
+		(*fact)[0] = 1;
+		for (int i = 1; i < n; i++) {
+			if (i % p == 0) {
+				(*fact)[i] = (*fact)[i - 1];
+				continue;
+			}
+			(*fact)[i] = (int64_t)i * (*fact)[i - 1] % n;
+		}
+		(*invf)[n - 1] = extended_inv_raw(n, (*fact)[n - 1]);
+		for (int i = n - 1; i > 0; i--) {
+			if (i % p == 0) {
+				(*invf)[i - 1] = (*invf)[i];
+				continue;
+			}
+			(*invf)[i - 1] = (int64_t)i * (*invf)[i] % n;
+		}
+	}
+	static vector<pair<int, int>> getCombinationOnePrimePower(uint64_t n, uint64_t k) {
+		static int preCalcMod = -1;
+		static vector<pair<int, int>> ff;
+		static unordered_map<int, vector<int>> fact, invf;
+		if (preCalcMod != mod()) {
+			preCalcMod = mod();
+			ff = factorize_mod();
+			for (const pair<int, int>& p : ff) {
+				vector<int> fl, il;
+				getSkippedFactTable(p.first, p.second, &fl, &il);
+				fact[p.first] = fl;
+				invf[p.first] = il;
+			}
+		}
+		vector<pair<int, int>> ret;
+		if (n < k) { return ret; }
+		for (const pair<int, int>& pe : ff) {
+			int p = pe.first, e = pe.second;
+			int md = 1;
+			for (int i = 0; i < e; i++) { md *= p; }
+			bool isS = (p == 2 && e == 2) || p >= 3;
+			uint64_t n0 = n, k0 = k, r0 = n - k;
+			int p_exp = 0, val = 1;
+			while (n0) {
+				p_exp += (int)(n0 - k0 - r0);
+				val = (int64_t)val * fact[p][n0 % md] % md;
+				val = (int64_t)val * invf[p][k0 % md] % md;
+				val = (int64_t)val * invf[p][r0 % md] % md;
+				n0 /= p;
+				k0 /= p;
+				r0 /= p;
+			}
+			if (p_exp >= e) {
+				ret.push_back(make_pair(md, 0));
+				continue;
+			}
+			int sp = 1;
+			for (int i = 0; i < p_exp; i++) { sp *= p; }
+			uint64_t n1 = n / md, k1 = k / md, r1 = (n - k) / md;
+			val = (int64_t)val * sp % md;
+			while (n1) {
+				if (isS && ((n1 - k1 - r1) & 1)) { val = (int64_t)val * (md - 1) % md; }
+				n1 /= p;
+				k1 /= p;
+				r1 /= p;
+			}
+			ret.push_back(make_pair(md, val));
+		}
+		return ret;
+	}
+	static RuntimeModInt crt_inner(const vector<pair<int, int>>& p) {
+		RuntimeModInt ret = 0;
+		size_t n = p.size();
+		static int preCalcMod = -1;
+		static vector<int> mv;
+		if (preCalcMod != mod()) {
+			preCalcMod = mod();
+			mv.clear();
+			int im = 1;
+			RuntimeModInt cm = 1;
+			for (size_t i = 0; i < n; i++) {
+				im = extended_inv_raw(p[i].first, cm.val());
+				mv.push_back(im);
+				cm *= p[i].first;
+			}
+		}
+		vector<int> b;
+		for (size_t i = 0; i < n; i++) {
+			int m = p[i].first, r = 0;
+			RuntimeModInt rmd = 1;
+			for (size_t j = 0; j < i; j++) {
+				r = (r + (int64_t)b[j] * rmd.val() % m) % m;
+				rmd *= p[j].first;
+			}
+			r = (r <= p[i].second) ? p[i].second - r : (p[i].second - r + m) % m;
+			RuntimeModInt v = (int64_t)mv[i] * r % m;
+			b.push_back(v.val());
+			ret += v * rmd;
+		}
+		return ret;
+	}
 public:
 	static int& mod() {
 		static int m = 0;
@@ -336,7 +482,7 @@ public:
 	}
 	template <typename T, enable_if_t<is_integral_v<T> && is_signed_v<T>>* = nullptr>
 	RuntimeModInt& operator=(T aX) {
-		x = (aX % mod_val() < 0) ? aX % mod_val() + umod_val() : aX % mod_val();
+		x = (aX % mod_val() < 0) ? aX % mod_val() + mod_val() : aX % mod_val();
 		return *this;
 	}
 	template <typename T, enable_if_t<is_integral_v<T> && is_unsigned_v<T>>* = nullptr>
@@ -640,7 +786,7 @@ public:
 		RuntimeModInt ret = 0;
 		function<RuntimeModInt(uint64_t, uint64_t)> vf = [n, q](uint64_t l, uint64_t m) {
 			RuntimeModInt s = ((q & 1) == (l & 1)) ? 1 : -1;
-			return getCombinationOne(q, l) * s * seeds[n % mod()][m];
+			return getCombinationOnePrime(q, l) * s * seeds[n % mod()][m];
 		};
 		if ((n + 1) % mod() == 0 && (k - q) % (mod() - 1) == 0 && k - q + 1 >= mod()) {
 			ret = vf((k - q + 1 - mod()) / (mod() - 1), mod() - 1);
@@ -664,14 +810,13 @@ public:
 		if (n < mod()) { return seeds[n][k]; }
 		uint64_t q0 = k / mod(), r0 = k % mod();
 		uint64_t q1 = (n - 1 - q0) / (mod() - 1), r1 = (n - 1 - q0) % (mod() - 1);
-		RuntimeModInt ret = getCombinationOne(q1, q0) * seeds[r1 + 1][r0];
+		RuntimeModInt ret = getCombinationOnePrime(q1, q0) * seeds[r1 + 1][r0];
 		if (r1 == mod() - 2 && q0 > 0) {
-			ret += getCombinationOne(q1, q0 - 1) * seeds[0][r0];
+			ret += getCombinationOnePrime(q1, q0 - 1) * seeds[0][r0];
 		}
 		return ret;
 	}
-	static RuntimeModInt getCombinationOne(uint64_t n, uint64_t k) {
-		assert(is_prime(mod()));
+	static RuntimeModInt getCombinationOnePrime(uint64_t n, uint64_t k) {
 		static vector<RuntimeModInt> fact, invf;
 		static int preCalcMod = -1;
 		if (preCalcMod != mod()) {
@@ -686,6 +831,19 @@ public:
 			n /= mod();
 			k /= mod();
 		}
+		return ret;
+	}
+	static RuntimeModInt getCombinationOne(uint64_t n, uint64_t k) {
+		if (n < k) { return 0; }
+		static int preCalcMod = -1;
+		static bool is_mod_prime = false;
+		if (preCalcMod != mod()) {
+			preCalcMod = mod();
+			is_mod_prime = is_prime(mod());
+		}
+		if (is_mod_prime) { return getCombinationOnePrime(n, k); }
+		vector<pair<int, int>> rems = getCombinationOnePrimePower(n, k);
+		RuntimeModInt ret = crt_inner(rems);
 		return ret;
 	}
 	static void convolve_xor_prod(vector<RuntimeModInt>* a,
@@ -710,6 +868,25 @@ public:
 		RuntimeModInt iv = (uint64_t)n;
 		iv = iv.inv();
 		for (size_t i = 0; i < n; i++) { (*a)[i] *= iv; }
+	}
+	static RuntimeModInt getCombinationPersistent(uint64_t n, uint64_t k) {
+		if (n < k) { return 0; }
+		static vector<RuntimeModInt> fact = {1}, invf = {1};
+		static int prev = mod();
+		if (prev != mod()) {
+			prev = mod();
+			fact = {1};
+			invf = {1};
+		}
+		if (n >= fact.size()) {
+			size_t old = fact.size();
+			fact.resize(n + 1);
+			invf.resize(n + 1);
+			for (size_t i = old; i <= n; i++) { fact[i] = fact[i - 1] * i; }
+			invf[n] = fact[n].inv();
+			for (size_t i = n; i > old; i--) { invf[i - 1] = invf[i] * i; }
+		}
+		return fact[n] * invf[k] * invf[n - k];
 	}
 };
 

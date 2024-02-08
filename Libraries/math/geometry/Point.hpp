@@ -8,7 +8,7 @@
 #ifndef Point_hpp
 #define Point_hpp
 
-template <typename T, int DIM>
+template <typename T, size_t DIM>
 class Point {
 private:
 	T elms[DIM];
@@ -20,6 +20,7 @@ public:
 	}
 	Point& operator=(const Point& other) {
 		for (int i = 0; i < DIM; i++) { elms[i] = other.elms[i]; }
+		return *this;
 	}
 	T& operator[](int i) { return elms[i]; }
 	const T& operator[](int i) const { return elms[i]; }
