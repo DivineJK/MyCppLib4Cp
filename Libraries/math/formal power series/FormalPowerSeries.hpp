@@ -306,15 +306,6 @@ public:
 			return;
 		}
 		int n = (int)a->size(), m = (int)b.size();
-		if (n <= 128 && m <= 128) {
-			vector<modint> tmp = *a;
-			a->clear();
-			a->resize(n + m - 1);
-			for (int i = 0; i < n; i++) {
-				for (int j = 0; j < m; j++) { (*a)[i + j] += tmp[i] * b[j]; }
-			}
-			return;
-		}
 		int bas = 1, c = 0;
 		while (bas < n + m) {
 			bas <<= 1;
